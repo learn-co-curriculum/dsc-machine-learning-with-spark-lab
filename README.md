@@ -124,6 +124,12 @@ Interesting... it looks like we have some extraneous values in each of our categ
 
 
 ```python
+import seaborn as sns
+
+def bar_plot_values(idx,group):
+    return [x[idx] for x in group]
+
+
 education_cats = spark_df.groupBy('EDUCATION').count().collect()
 sns.barplot(x=bar_plot_values(0,education_cats),y=bar_plot_values(1,education_cats))
 ```
@@ -131,12 +137,8 @@ sns.barplot(x=bar_plot_values(0,education_cats),y=bar_plot_values(1,education_ca
 
 
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x1a1960d7b8>
+    <matplotlib.axes._subplots.AxesSubplot at 0x1a12a0d5c0>
 
-
-
-
-![png](index_files/index_10_1.png)
 
 
 
@@ -148,7 +150,7 @@ sns.barplot(x=bar_plot_values(0, marriage_cats), y=bar_plot_values(1, marriage_c
 
 
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x1a17c63cc0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x1a1e14f630>
 
 
 
@@ -157,19 +159,6 @@ sns.barplot(x=bar_plot_values(0, marriage_cats), y=bar_plot_values(1, marriage_c
 
 
 It looks like there are barely any of the categories of 0 and 5 categories. We can go ahead and throw them into the "Other" category since it's already operating as a catchall here. Similarly, the category "0" looks small, so let's throw it in with the "Other" values.
-
-
-```python
-x = spark_df.select('EDUCATION') == '0'
-x
-```
-
-
-
-
-    False
-
-
 
 
 ```python
@@ -186,6 +175,13 @@ spark_df_done = spark_df_2.withColumn("MARRIAGE",
                                    when(spark_df.MARRIAGE == '0','Other')\
                                    .otherwise(spark_df['MARRIAGE']))
 ```
+
+
+```python
+spark_df
+```
+
+Now let's take a look at the values.
 
 
 ```python
@@ -207,7 +203,7 @@ Let's first look at the overall distribution of class imbalance to determine if 
 
 
 ```python
-number_of_defaults = spark_df.groupBy('default').count().collect()
+number_of_defaults = spark_df_done.groupBy('default').count().collect()
 
 ```
 
@@ -236,7 +232,7 @@ ax.set_ylabel('Number of Defaults')
 
 
 
-![png](index_files/index_20_1.png)
+![png](index_files/index_21_1.png)
 
 
 
@@ -246,7 +242,7 @@ ax.set_ylabel('Number of Defaults')
 
 
 ```python
-results = spark_df.groupBy(['SEX','default']).count().collect()
+results = spark_df_done.groupBy(['SEX','default']).count().collect()
 ```
 
 
@@ -257,18 +253,12 @@ results
 
 
 
-    [Row(SEX=1, default=0, count=9015),
-     Row(SEX=1, default=1, count=2873),
-     Row(SEX=2, default=1, count=3762),
-     Row(SEX=2, default=0, count=14349)]
+    [Row(SEX='Male', default=1, count=2873),
+     Row(SEX='Female', default=0, count=14349),
+     Row(SEX='Male', default=0, count=9015),
+     Row(SEX='Female', default=1, count=3762)]
 
 
-
-
-```python
-def bar_plot_values(idx,group):
-    return [x[idx] for x in group]
-```
 
 
 ```python
@@ -285,7 +275,7 @@ bar_plot_values(1,defaulted)
 
 
 
-    [1, 1]
+    [1, 0]
 
 
 
@@ -302,7 +292,7 @@ sns.barplot(x= bar_plot_values(1,not_defaulted),y=bar_plot_values(2,not_defaulte
 
 
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x1a1818dc50>
+    <matplotlib.axes._subplots.AxesSubplot at 0x1a1e314be0>
 
 
 
@@ -318,14 +308,14 @@ results = spark_df.groupBy(['SEX','default']).count().collect()
 
 ```python
 import seaborn as sns
-sns.categorical.boxplot()
+
 ```
 
 ## Onto the Machine Learning!
 
 
 ```python
-from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler, StringIndexerModel
+from pyspark.ml.feature import StringIndexer, OneHotEncoderEstimator, VectorAssembler, StringIndexerModel
 ```
 
 
@@ -355,7 +345,7 @@ for col in ['EDUCATION','SEX','MARRIAGE']:
     
 input_columns = [indexer.getOutputCol() for indexer in indexers]
 
-one_hot_encoder = OneHotEncoderEstimator(inputCols=input_columns,outputCols=[col + 'ohe' for col in input_columns])
+one_hot_encoder = OneHotEncoderEstimator(inputCols=input_columns,outputCols=[col + 'ohe' for col in input_columns],dropLast=True)
 
 features = ['LIMIT_BAL','AGE','PAY_0','PAY_2','PAY_3',
             'PAY_4','PAY_5','PAY_6', 'BILL_AMT1','BILL_AMT2',
@@ -370,1774 +360,401 @@ stages.extend([one_hot_encoder,vector_assember])
 print(stages)
 ```
 
-    [StringIndexer_4a1ebab6194451f0ef0e, StringIndexer_441fb14e4ffbca71828c, StringIndexer_4814b38309b2c37240d2, OneHotEncoderEstimator_422a926e5bfe35ae5a07, VectorAssembler_47d0a99f6577b8dcce9a]
+    [StringIndexer_40d38a1255d92550c417, StringIndexer_41478663d2855607f4d5, StringIndexer_4f83b58450346b3e4366, OneHotEncoderEstimator_44b7a30776829ea2baad, VectorAssembler_4343937965100214c801]
 
-
-Now let's create all the stages here to make 
 
 
 ```python
-x.getOutputCol()
+features
 ```
 
 
 
 
-    'EDUCATION_'
+    ['LIMIT_BAL',
+     'AGE',
+     'PAY_0',
+     'PAY_2',
+     'PAY_3',
+     'PAY_4',
+     'PAY_5',
+     'PAY_6',
+     'BILL_AMT1',
+     'BILL_AMT2',
+     'BILL_AMT3',
+     'BILL_AMT4',
+     'BILL_AMT5',
+     'BILL_AMT6',
+     'EDUCATION_ohe',
+     'SEX_ohe',
+     'MARRIAGE_ohe']
 
 
+
+Alright! Now let's see if that worked. Let's investigate how it transforms our dataset.
 
 
 ```python
-from pyspark.ml.feature import OneHotEncoderEstimator, VectorAssembler
-
-ohe = OneHotEncoderEstimator(inputCols=['SEX','EDUCATION','MARRIAGE'],outputCols=['SEX_c','EDUCATION_c','MARRIAGE_c'])
+from pyspark.ml.pipeline import Pipeline
+pipe = Pipeline(stages=stages)
 ```
 
 
 ```python
-ohe.fit(spark_df)
-```
-
-
-
-
-    OneHotEncoderEstimator_4cdd8e04d5de9b43dc2e
-
-
-
-
-```python
-import pandas as pd
+data_transformer = pipe.fit(spark_df_done)
+transformed_data = data_transformer.transform(spark_df_done)
+p = transformed_data.select('features')
 ```
 
 
 ```python
-df = pd.read_csv('./credit_default.csv')
-```
-
-
-```python
-df.loc[df['SEX'] == 2 ,'SEX'] = 'Female'
-df.loc[df['SEX'] == 1 ,'SEX'] = 'Male'
-```
-
-
-```python
-df.loc[df['EDUCATION'] == 1,'EDUCATION'] = 'Graduate'
-df.loc[df['EDUCATION'] == 2,'EDUCATION'] = 'College'
-df.loc[df['EDUCATION'] == 3,'EDUCATION'] = 'High School'
-df.loc[df['EDUCATION'] == 4,'EDUCATION'] = 'Other'
-```
-
-
-```python
-df.loc[df['MARRIAGE'] == 1,'MARRIAGE'] = 'Married'
-df.loc[df['MARRIAGE'] == 2,'MARRIAGE'] = 'Single'
-df.loc[df['MARRIAGE'] == 3,'MARRIAGE'] = 'Other'
-
-
-```
-
-
-```python
-df.head()
+spark_df_done.columns
 ```
 
 
 
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>ID</th>
-      <th>LIMIT_BAL</th>
-      <th>SEX</th>
-      <th>EDUCATION</th>
-      <th>MARRIAGE</th>
-      <th>AGE</th>
-      <th>PAY_0</th>
-      <th>PAY_2</th>
-      <th>PAY_3</th>
-      <th>PAY_4</th>
-      <th>...</th>
-      <th>BILL_AMT4</th>
-      <th>BILL_AMT5</th>
-      <th>BILL_AMT6</th>
-      <th>PAY_AMT1</th>
-      <th>PAY_AMT2</th>
-      <th>PAY_AMT3</th>
-      <th>PAY_AMT4</th>
-      <th>PAY_AMT5</th>
-      <th>PAY_AMT6</th>
-      <th>default</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>2</td>
-      <td>120000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>26</td>
-      <td>-1</td>
-      <td>2</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>3272.0</td>
-      <td>3455.0</td>
-      <td>3261.0</td>
-      <td>0.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>0.0</td>
-      <td>2000.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>3</td>
-      <td>90000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>14331.0</td>
-      <td>14948.0</td>
-      <td>15549.0</td>
-      <td>1518.0</td>
-      <td>1500.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>5000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>4</td>
-      <td>50000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>37</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>28314.0</td>
-      <td>28959.0</td>
-      <td>29547.0</td>
-      <td>2000.0</td>
-      <td>2019.0</td>
-      <td>1200.0</td>
-      <td>1100.0</td>
-      <td>1069.0</td>
-      <td>1000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>5</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>57</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>...</td>
-      <td>20940.0</td>
-      <td>19146.0</td>
-      <td>19131.0</td>
-      <td>2000.0</td>
-      <td>36681.0</td>
-      <td>10000.0</td>
-      <td>9000.0</td>
-      <td>689.0</td>
-      <td>679.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>6</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>37</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>19394.0</td>
-      <td>19619.0</td>
-      <td>20024.0</td>
-      <td>2500.0</td>
-      <td>1815.0</td>
-      <td>657.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>800.0</td>
-      <td>0</td>
-    </tr>
-  </tbody>
-</table>
-<p>5 rows × 25 columns</p>
-</div>
+    ['ID',
+     'LIMIT_BAL',
+     'SEX',
+     'EDUCATION',
+     'MARRIAGE',
+     'AGE',
+     'PAY_0',
+     'PAY_2',
+     'PAY_3',
+     'PAY_4',
+     'PAY_5',
+     'PAY_6',
+     'BILL_AMT1',
+     'BILL_AMT2',
+     'BILL_AMT3',
+     'BILL_AMT4',
+     'BILL_AMT5',
+     'BILL_AMT6',
+     'PAY_AMT1',
+     'PAY_AMT2',
+     'PAY_AMT3',
+     'PAY_AMT4',
+     'PAY_AMT5',
+     'PAY_AMT6',
+     'default']
 
 
 
 
 ```python
-df.to_csv('credit_card_default.csv')
+ohe_bleh= pipe.getStages()[3]
 ```
 
 
 ```python
-pd.read_csv('./credit_card_default.csv')
+ohe_bleh.getInputCols()
 ```
 
 
 
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>ID</th>
-      <th>LIMIT_BAL</th>
-      <th>SEX</th>
-      <th>EDUCATION</th>
-      <th>MARRIAGE</th>
-      <th>AGE</th>
-      <th>PAY_0</th>
-      <th>PAY_2</th>
-      <th>PAY_3</th>
-      <th>PAY_4</th>
-      <th>...</th>
-      <th>BILL_AMT4</th>
-      <th>BILL_AMT5</th>
-      <th>BILL_AMT6</th>
-      <th>PAY_AMT1</th>
-      <th>PAY_AMT2</th>
-      <th>PAY_AMT3</th>
-      <th>PAY_AMT4</th>
-      <th>PAY_AMT5</th>
-      <th>PAY_AMT6</th>
-      <th>default</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>2</td>
-      <td>120000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>26</td>
-      <td>-1</td>
-      <td>2</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>3272.0</td>
-      <td>3455.0</td>
-      <td>3261.0</td>
-      <td>0.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>0.0</td>
-      <td>2000.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>3</td>
-      <td>90000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>14331.0</td>
-      <td>14948.0</td>
-      <td>15549.0</td>
-      <td>1518.0</td>
-      <td>1500.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>5000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>4</td>
-      <td>50000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>37</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>28314.0</td>
-      <td>28959.0</td>
-      <td>29547.0</td>
-      <td>2000.0</td>
-      <td>2019.0</td>
-      <td>1200.0</td>
-      <td>1100.0</td>
-      <td>1069.0</td>
-      <td>1000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>5</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>57</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>...</td>
-      <td>20940.0</td>
-      <td>19146.0</td>
-      <td>19131.0</td>
-      <td>2000.0</td>
-      <td>36681.0</td>
-      <td>10000.0</td>
-      <td>9000.0</td>
-      <td>689.0</td>
-      <td>679.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>6</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>37</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>19394.0</td>
-      <td>19619.0</td>
-      <td>20024.0</td>
-      <td>2500.0</td>
-      <td>1815.0</td>
-      <td>657.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>800.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>5</th>
-      <td>7</td>
-      <td>500000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>29</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>542653.0</td>
-      <td>483003.0</td>
-      <td>473944.0</td>
-      <td>55000.0</td>
-      <td>40000.0</td>
-      <td>38000.0</td>
-      <td>20239.0</td>
-      <td>13750.0</td>
-      <td>13770.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>6</th>
-      <td>8</td>
-      <td>100000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>23</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>...</td>
-      <td>221.0</td>
-      <td>-159.0</td>
-      <td>567.0</td>
-      <td>380.0</td>
-      <td>601.0</td>
-      <td>0.0</td>
-      <td>581.0</td>
-      <td>1687.0</td>
-      <td>1542.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>7</th>
-      <td>9</td>
-      <td>140000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>28</td>
-      <td>0</td>
-      <td>0</td>
-      <td>2</td>
-      <td>0</td>
-      <td>...</td>
-      <td>12211.0</td>
-      <td>11793.0</td>
-      <td>3719.0</td>
-      <td>3329.0</td>
-      <td>0.0</td>
-      <td>432.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>8</th>
-      <td>10</td>
-      <td>20000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>35</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>13007.0</td>
-      <td>13912.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>13007.0</td>
-      <td>1122.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>9</th>
-      <td>11</td>
-      <td>200000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>2</td>
-      <td>0</td>
-      <td>...</td>
-      <td>2513.0</td>
-      <td>1828.0</td>
-      <td>3731.0</td>
-      <td>2306.0</td>
-      <td>12.0</td>
-      <td>50.0</td>
-      <td>300.0</td>
-      <td>3738.0</td>
-      <td>66.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>10</th>
-      <td>12</td>
-      <td>260000.0</td>
-      <td>Female</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>51</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>8517.0</td>
-      <td>22287.0</td>
-      <td>13668.0</td>
-      <td>21818.0</td>
-      <td>9966.0</td>
-      <td>8583.0</td>
-      <td>22301.0</td>
-      <td>0.0</td>
-      <td>3640.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>11</th>
-      <td>13</td>
-      <td>630000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>41</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>6500.0</td>
-      <td>6500.0</td>
-      <td>2870.0</td>
-      <td>1000.0</td>
-      <td>6500.0</td>
-      <td>6500.0</td>
-      <td>6500.0</td>
-      <td>2870.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>12</th>
-      <td>14</td>
-      <td>70000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>30</td>
-      <td>1</td>
-      <td>2</td>
-      <td>2</td>
-      <td>0</td>
-      <td>...</td>
-      <td>66782.0</td>
-      <td>36137.0</td>
-      <td>36894.0</td>
-      <td>3200.0</td>
-      <td>0.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>1500.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>13</th>
-      <td>15</td>
-      <td>250000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>29</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>59696.0</td>
-      <td>56875.0</td>
-      <td>55512.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>3000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>14</th>
-      <td>16</td>
-      <td>50000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Other</td>
-      <td>23</td>
-      <td>1</td>
-      <td>2</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>28771.0</td>
-      <td>29531.0</td>
-      <td>30211.0</td>
-      <td>0.0</td>
-      <td>1500.0</td>
-      <td>1100.0</td>
-      <td>1200.0</td>
-      <td>1300.0</td>
-      <td>1100.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>15</th>
-      <td>17</td>
-      <td>20000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>24</td>
-      <td>0</td>
-      <td>0</td>
-      <td>2</td>
-      <td>2</td>
-      <td>...</td>
-      <td>18338.0</td>
-      <td>17905.0</td>
-      <td>19104.0</td>
-      <td>3200.0</td>
-      <td>0.0</td>
-      <td>1500.0</td>
-      <td>0.0</td>
-      <td>1650.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>16</th>
-      <td>18</td>
-      <td>320000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>49</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>70074.0</td>
-      <td>5856.0</td>
-      <td>195599.0</td>
-      <td>10358.0</td>
-      <td>10000.0</td>
-      <td>75940.0</td>
-      <td>20000.0</td>
-      <td>195599.0</td>
-      <td>50000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>17</th>
-      <td>19</td>
-      <td>360000.0</td>
-      <td>Female</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>49</td>
-      <td>1</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>18</th>
-      <td>20</td>
-      <td>180000.0</td>
-      <td>Female</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>29</td>
-      <td>1</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>19</th>
-      <td>21</td>
-      <td>130000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>39</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>20616.0</td>
-      <td>11802.0</td>
-      <td>930.0</td>
-      <td>3000.0</td>
-      <td>1537.0</td>
-      <td>1000.0</td>
-      <td>2000.0</td>
-      <td>930.0</td>
-      <td>33764.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>20</th>
-      <td>22</td>
-      <td>120000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>39</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>632.0</td>
-      <td>316.0</td>
-      <td>316.0</td>
-      <td>316.0</td>
-      <td>0.0</td>
-      <td>632.0</td>
-      <td>316.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>21</th>
-      <td>23</td>
-      <td>70000.0</td>
-      <td>Female</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>26</td>
-      <td>2</td>
-      <td>0</td>
-      <td>0</td>
-      <td>2</td>
-      <td>...</td>
-      <td>44006.0</td>
-      <td>46905.0</td>
-      <td>46012.0</td>
-      <td>2007.0</td>
-      <td>3582.0</td>
-      <td>0.0</td>
-      <td>3601.0</td>
-      <td>0.0</td>
-      <td>1820.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>22</th>
-      <td>24</td>
-      <td>450000.0</td>
-      <td>Female</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>40</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>560.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>19428.0</td>
-      <td>1473.0</td>
-      <td>560.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>1128.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>23</th>
-      <td>25</td>
-      <td>90000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>23</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>5398.0</td>
-      <td>6360.0</td>
-      <td>8292.0</td>
-      <td>5757.0</td>
-      <td>0.0</td>
-      <td>5398.0</td>
-      <td>1200.0</td>
-      <td>2045.0</td>
-      <td>2000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>24</th>
-      <td>26</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>23</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>28967.0</td>
-      <td>29829.0</td>
-      <td>30046.0</td>
-      <td>1973.0</td>
-      <td>1426.0</td>
-      <td>1001.0</td>
-      <td>1432.0</td>
-      <td>1062.0</td>
-      <td>997.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>25</th>
-      <td>27</td>
-      <td>60000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>27</td>
-      <td>1</td>
-      <td>-2</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>-57.0</td>
-      <td>127.0</td>
-      <td>-189.0</td>
-      <td>0.0</td>
-      <td>1000.0</td>
-      <td>0.0</td>
-      <td>500.0</td>
-      <td>0.0</td>
-      <td>1000.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>26</th>
-      <td>28</td>
-      <td>50000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>30</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>17878.0</td>
-      <td>18931.0</td>
-      <td>19617.0</td>
-      <td>1300.0</td>
-      <td>1300.0</td>
-      <td>1000.0</td>
-      <td>1500.0</td>
-      <td>1000.0</td>
-      <td>1012.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>27</th>
-      <td>29</td>
-      <td>50000.0</td>
-      <td>Female</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>47</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>2040.0</td>
-      <td>30430.0</td>
-      <td>257.0</td>
-      <td>3415.0</td>
-      <td>3421.0</td>
-      <td>2044.0</td>
-      <td>30430.0</td>
-      <td>257.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>28</th>
-      <td>30</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>26</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>17907.0</td>
-      <td>18375.0</td>
-      <td>11400.0</td>
-      <td>1500.0</td>
-      <td>1500.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1600.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29</th>
-      <td>31</td>
-      <td>230000.0</td>
-      <td>Female</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>27</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>15339.0</td>
-      <td>14307.0</td>
-      <td>36923.0</td>
-      <td>17270.0</td>
-      <td>13281.0</td>
-      <td>15339.0</td>
-      <td>14307.0</td>
-      <td>37292.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>29969</th>
-      <td>29971</td>
-      <td>360000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>34</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>...</td>
-      <td>49005.0</td>
-      <td>8676.0</td>
-      <td>19487.0</td>
-      <td>52951.0</td>
-      <td>64535.0</td>
-      <td>8907.0</td>
-      <td>53.0</td>
-      <td>19584.0</td>
-      <td>16080.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29970</th>
-      <td>29972</td>
-      <td>80000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>36</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>69674.0</td>
-      <td>71070.0</td>
-      <td>73612.0</td>
-      <td>2395.0</td>
-      <td>2500.0</td>
-      <td>2530.0</td>
-      <td>2556.0</td>
-      <td>3700.0</td>
-      <td>3000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29971</th>
-      <td>29973</td>
-      <td>190000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>37</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>29223.0</td>
-      <td>19616.0</td>
-      <td>148482.0</td>
-      <td>2000.0</td>
-      <td>3869.0</td>
-      <td>25128.0</td>
-      <td>10115.0</td>
-      <td>148482.0</td>
-      <td>4800.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29972</th>
-      <td>29974</td>
-      <td>230000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>35</td>
-      <td>1</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29973</th>
-      <td>29975</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>37</td>
-      <td>1</td>
-      <td>2</td>
-      <td>2</td>
-      <td>2</td>
-      <td>...</td>
-      <td>2846.0</td>
-      <td>1585.0</td>
-      <td>1324.0</td>
-      <td>0.0</td>
-      <td>3000.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29974</th>
-      <td>29976</td>
-      <td>220000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>41</td>
-      <td>0</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>5924.0</td>
-      <td>1759.0</td>
-      <td>1824.0</td>
-      <td>8840.0</td>
-      <td>6643.0</td>
-      <td>5924.0</td>
-      <td>1759.0</td>
-      <td>1824.0</td>
-      <td>7022.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29975</th>
-      <td>29977</td>
-      <td>40000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>47</td>
-      <td>2</td>
-      <td>2</td>
-      <td>3</td>
-      <td>2</td>
-      <td>...</td>
-      <td>51259.0</td>
-      <td>47151.0</td>
-      <td>46934.0</td>
-      <td>4000.0</td>
-      <td>0.0</td>
-      <td>2000.0</td>
-      <td>0.0</td>
-      <td>3520.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29976</th>
-      <td>29978</td>
-      <td>420000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>141695.0</td>
-      <td>144839.0</td>
-      <td>147954.0</td>
-      <td>7000.0</td>
-      <td>7000.0</td>
-      <td>5500.0</td>
-      <td>5500.0</td>
-      <td>5600.0</td>
-      <td>5000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29977</th>
-      <td>29979</td>
-      <td>310000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>39</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>219409.0</td>
-      <td>216540.0</td>
-      <td>210675.0</td>
-      <td>10029.0</td>
-      <td>9218.0</td>
-      <td>10029.0</td>
-      <td>8049.0</td>
-      <td>8040.0</td>
-      <td>10059.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29978</th>
-      <td>29980</td>
-      <td>180000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>32</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29979</th>
-      <td>29981</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>42</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>50360.0</td>
-      <td>19971.0</td>
-      <td>19694.0</td>
-      <td>10000.0</td>
-      <td>4000.0</td>
-      <td>5000.0</td>
-      <td>3000.0</td>
-      <td>4500.0</td>
-      <td>2000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29980</th>
-      <td>29982</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>44</td>
-      <td>1</td>
-      <td>2</td>
-      <td>2</td>
-      <td>2</td>
-      <td>...</td>
-      <td>28192.0</td>
-      <td>22676.0</td>
-      <td>14647.0</td>
-      <td>2300.0</td>
-      <td>1700.0</td>
-      <td>0.0</td>
-      <td>517.0</td>
-      <td>503.0</td>
-      <td>585.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29981</th>
-      <td>29983</td>
-      <td>90000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>36</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>11328.0</td>
-      <td>12036.0</td>
-      <td>14329.0</td>
-      <td>1500.0</td>
-      <td>1500.0</td>
-      <td>1500.0</td>
-      <td>1200.0</td>
-      <td>2500.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29982</th>
-      <td>29984</td>
-      <td>20000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>44</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>2882.0</td>
-      <td>9235.0</td>
-      <td>1719.0</td>
-      <td>2890.0</td>
-      <td>2720.0</td>
-      <td>2890.0</td>
-      <td>9263.0</td>
-      <td>1824.0</td>
-      <td>1701.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29983</th>
-      <td>29985</td>
-      <td>30000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>38</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-2</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>1993.0</td>
-      <td>1907.0</td>
-      <td>3319.0</td>
-      <td>923.0</td>
-      <td>2977.0</td>
-      <td>1999.0</td>
-      <td>3057.0</td>
-      <td>3319.0</td>
-      <td>1000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29984</th>
-      <td>29986</td>
-      <td>240000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>30</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29985</th>
-      <td>29987</td>
-      <td>360000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>35</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-2</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29986</th>
-      <td>29988</td>
-      <td>130000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>108047.0</td>
-      <td>93708.0</td>
-      <td>97353.0</td>
-      <td>3000.0</td>
-      <td>2000.0</td>
-      <td>93000.0</td>
-      <td>4000.0</td>
-      <td>5027.0</td>
-      <td>4005.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29987</th>
-      <td>29989</td>
-      <td>250000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Married</td>
-      <td>34</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>245750.0</td>
-      <td>175005.0</td>
-      <td>179687.0</td>
-      <td>65000.0</td>
-      <td>8800.0</td>
-      <td>9011.0</td>
-      <td>6000.0</td>
-      <td>7000.0</td>
-      <td>6009.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29988</th>
-      <td>29990</td>
-      <td>150000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>35</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>780.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>9054.0</td>
-      <td>0.0</td>
-      <td>783.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29989</th>
-      <td>29991</td>
-      <td>140000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>41</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>138262.0</td>
-      <td>49675.0</td>
-      <td>46121.0</td>
-      <td>6000.0</td>
-      <td>7000.0</td>
-      <td>4228.0</td>
-      <td>1505.0</td>
-      <td>2000.0</td>
-      <td>2000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29990</th>
-      <td>29992</td>
-      <td>210000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>34</td>
-      <td>3</td>
-      <td>2</td>
-      <td>2</td>
-      <td>2</td>
-      <td>...</td>
-      <td>2500.0</td>
-      <td>2500.0</td>
-      <td>2500.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29991</th>
-      <td>29993</td>
-      <td>10000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>43</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>-2</td>
-      <td>...</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>2000.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29992</th>
-      <td>29994</td>
-      <td>100000.0</td>
-      <td>Male</td>
-      <td>Graduate</td>
-      <td>Single</td>
-      <td>38</td>
-      <td>0</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>...</td>
-      <td>70626.0</td>
-      <td>69473.0</td>
-      <td>55004.0</td>
-      <td>2000.0</td>
-      <td>111784.0</td>
-      <td>4000.0</td>
-      <td>3000.0</td>
-      <td>2000.0</td>
-      <td>2000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29993</th>
-      <td>29995</td>
-      <td>80000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>34</td>
-      <td>2</td>
-      <td>2</td>
-      <td>2</td>
-      <td>2</td>
-      <td>...</td>
-      <td>77519.0</td>
-      <td>82607.0</td>
-      <td>81158.0</td>
-      <td>7000.0</td>
-      <td>3500.0</td>
-      <td>0.0</td>
-      <td>7000.0</td>
-      <td>0.0</td>
-      <td>4000.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29994</th>
-      <td>29996</td>
-      <td>220000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>39</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>88004.0</td>
-      <td>31237.0</td>
-      <td>15980.0</td>
-      <td>8500.0</td>
-      <td>20000.0</td>
-      <td>5003.0</td>
-      <td>3047.0</td>
-      <td>5000.0</td>
-      <td>1000.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29995</th>
-      <td>29997</td>
-      <td>150000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Single</td>
-      <td>43</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>8979.0</td>
-      <td>5190.0</td>
-      <td>0.0</td>
-      <td>1837.0</td>
-      <td>3526.0</td>
-      <td>8998.0</td>
-      <td>129.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>29996</th>
-      <td>29998</td>
-      <td>30000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Single</td>
-      <td>37</td>
-      <td>4</td>
-      <td>3</td>
-      <td>2</td>
-      <td>-1</td>
-      <td>...</td>
-      <td>20878.0</td>
-      <td>20582.0</td>
-      <td>19357.0</td>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>22000.0</td>
-      <td>4200.0</td>
-      <td>2000.0</td>
-      <td>3100.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29997</th>
-      <td>29999</td>
-      <td>80000.0</td>
-      <td>Male</td>
-      <td>High School</td>
-      <td>Married</td>
-      <td>41</td>
-      <td>1</td>
-      <td>-1</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>52774.0</td>
-      <td>11855.0</td>
-      <td>48944.0</td>
-      <td>85900.0</td>
-      <td>3409.0</td>
-      <td>1178.0</td>
-      <td>1926.0</td>
-      <td>52964.0</td>
-      <td>1804.0</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>29998</th>
-      <td>30000</td>
-      <td>50000.0</td>
-      <td>Male</td>
-      <td>College</td>
-      <td>Married</td>
-      <td>46</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>0</td>
-      <td>...</td>
-      <td>36535.0</td>
-      <td>32428.0</td>
-      <td>15313.0</td>
-      <td>2078.0</td>
-      <td>1800.0</td>
-      <td>1430.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1000.0</td>
-      <td>1</td>
-    </tr>
-  </tbody>
-</table>
-<p>29999 rows × 25 columns</p>
-</div>
+    ['EDUCATION_', 'SEX_', 'MARRIAGE_']
 
 
+
+
+```python
+len(p.head()[0])
+```
+
+
+
+
+    23
+
+
+
+That looks good! Now let's go ahead and fit it to an ML pipeline. Try whichever machine learning model you would like. 
+
+
+```python
+from pyspark.ml.classification import GBTClassifier, DecisionTreeClassifier, LogisticRegression
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+```
+
+### Logistic Regression
+
+First, we'll try with a simple Logistic Regression Model:
+
+
+```python
+lr = LogisticRegression(featuresCol='features',labelCol='default')
+```
+
+
+```python
+p = Pipeline(stages=stages + [lr])
+model = p.fit(spark_df_done)
+```
+
+
+```python
+trained = model.transform(spark_df_done)
+```
+
+
+```python
+trained.select('prediction').take(20)
+```
+
+
+
+
+    [Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0),
+     Row(prediction=0.0)]
+
+
+
+
+```python
+evaluation = BinaryClassificationEvaluator(labelCol = 'default')
+```
+
+
+```python
+evaluation.evaluate(trained)
+```
+
+
+
+
+    0.7193835007502917
+
+
+
+
+```python
+lr_params = ParamGridBuilder().addGrid(lr.regParam,[0.0,0.2,0.5,1.0])\
+.addGrid(lr.standardization,[True,False])\
+.build()
+
+# cv = CrossValidator(estimator=pipeline, estimatorParamMaps=params,evaluator=reg_evaluator)
+```
+
+
+```python
+print(lr_params)
+```
+
+### Making a reusable function to run models
+
+
+```python
+import numpy as np
+import time
+def create_model(ml_model,
+                 preprocessing_stages,
+                 param_grid,
+                 parallel = 4,
+                 evaluation_metric = 'areaUnderROC',
+                 parafeaturesCol = 'features',
+                 label='default'):
+    start = time.time()
+    stage_with_ml = preprocessing_stages + [ml_model]
+    pipe = Pipeline(stages=stage_with_ml)
+    
+    evaluation = BinaryClassificationEvaluator(labelCol = label,metricName=evaluation_metric)
+    cv = CrossValidator(estimator = pipe,
+                        estimatorParamMaps=param_grid,
+                        evaluator = evaluation,
+                       parallelism = parallel).fit(spark_df_done)
+    print(np.mean(cv.avgMetrics))
+    end = time.time()
+    print(end-start)
+    return cv
+
+
+```
+
+
+```python
+spark_df_done.dtypes
+```
+
+
+
+
+    [('ID', 'int'),
+     ('LIMIT_BAL', 'double'),
+     ('SEX', 'string'),
+     ('EDUCATION', 'string'),
+     ('MARRIAGE', 'string'),
+     ('AGE', 'int'),
+     ('PAY_0', 'int'),
+     ('PAY_2', 'int'),
+     ('PAY_3', 'int'),
+     ('PAY_4', 'int'),
+     ('PAY_5', 'int'),
+     ('PAY_6', 'int'),
+     ('BILL_AMT1', 'double'),
+     ('BILL_AMT2', 'double'),
+     ('BILL_AMT3', 'double'),
+     ('BILL_AMT4', 'double'),
+     ('BILL_AMT5', 'double'),
+     ('BILL_AMT6', 'double'),
+     ('PAY_AMT1', 'double'),
+     ('PAY_AMT2', 'double'),
+     ('PAY_AMT3', 'double'),
+     ('PAY_AMT4', 'double'),
+     ('PAY_AMT5', 'double'),
+     ('PAY_AMT6', 'double'),
+     ('default', 'int')]
+
+
+
+Create an ROC curve comparing the effectiveness of your optimal three models. Which one performed the best? Use AUC of the ROC to make your decision.
+
+
+```python
+cross_val_model_lr = create_model(lr,stages,param_grid=lr_params,parallel = 4)
+```
+
+    0.7047069286355365
+    29.316229104995728
+
+
+
+```python
+evaluate= cross_val_model_lr.getEvaluator()
+estimate = cross_val_model_lr.bestModel
+```
+
+
+```python
+evaluate.evaluate(estimate.transform(spark_df_done))
+```
+
+
+
+
+    0.7193835007502917
+
+
+
+### Gradient Boosting
+
+
+```python
+GBTParams??
+```
+
+
+```python
+gb = GBTClassifier(featuresCol='features',labelCol='default')
+param_gb = ParamGridBuilder().addGrid(gb.maxDepth,[1,5]).addGrid(gb.maxIter,[20,100]).addGrid(gb.stepSize,[0.1,0.01]).build()
+
+
+# params = ParamGridBuilder()\
+# .addGrid(random_forest.maxDepth, [5,10,15])\
+# .addGrid(random_forest.numTrees, [20,50,100])\
+# .build()
+```
+
+
+```python
+cross_val_gb = create_model(gb,stages, param_grid=param_gb, parallel=4)
+```
+
+    0.7637664085212773
+    452.124135017395
+
+
+
+```python
+# evaluate= cross_val_model_lr.getEvaluator()
+# estimate = cross_val_model_lr.bestModel
+```
+
+
+```python
+evaluate_gb = cross_val_gb.getEvaluator()
+estimator = cross_val_gb.bestModel
+evaluate_gb.evaluate(estimator.transform(spark_df_done))
+```
+
+
+
+
+    0.7992496265323968
+
+
+
+
+```python
+gbmodel = estimator.stages[-1]
+```
+
+
+```python
+gbmodel.featureImportances.toArray()
+```
+
+
+
+
+    array([0.1217847 , 0.09038265, 0.12095581, 0.04057928, 0.09497802,
+           0.03388622, 0.03667418, 0.04226211, 0.11547971, 0.06103341,
+           0.03749708, 0.04312199, 0.04007098, 0.0405966 , 0.00921013,
+           0.01554876, 0.00478494, 0.01917409, 0.01031815, 0.        ,
+           0.01060254, 0.00758431, 0.00347433])
+
+
+
+
+```python
+gbmodel.featuresCol
+```
+
+
+
+
+    Param(parent='GBTClassifier_489880420cdc491b1a97', name='featuresCol', doc='features column name')
+
+
+
+
+```python
+len(['LIMIT_BAL','AGE','PAY_0','PAY_2','PAY_3',
+            'PAY_4','PAY_5','PAY_6', 'BILL_AMT1','BILL_AMT2',
+            'BILL_AMT3','BILL_AMT4','BILL_AMT5','BILL_AMT6', 'SEX','SEX2','GRAD_SCHOOL','COLLEGE','HIGH_SCHOOL','OTHER','MARRIED','NOT MARRIED','OTHER'])
+
+```
+
+
+
+
+    23
+
+
+
+## Make an ROC curve for each of your models
+
+## Summary
+
+If you've made it thus far, congratulations! pyspark is not an easy to use language any way you approach it. It's quite new, and as a result the documentation can be lacking and there is not as much support online as their is for more established libraries like sci-kit learn or pandas.
