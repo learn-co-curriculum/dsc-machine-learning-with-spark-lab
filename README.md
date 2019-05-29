@@ -11,7 +11,7 @@ In the previous lecture, you were shown how to manipulate data with Spark DataFr
 * Evaluate a model with pyspark
 * Create and interpret visualizations with pyspark
 
-To begin with, create a SparkSession and read in credit_card_default.csv 
+To begin with, create a SparkSession and read in 'credit_card_default.csv' to a PySpark DataFrame
 
 
 ```python
@@ -26,7 +26,7 @@ spark = SparkSession(sc)
 spark_df = spark.read.csv('./credit_card_default.csv',header='true',inferSchema='true')
 ```
 
-Check the datatypes to ensure that all of them are the datatype you expect.
+Check the datatypes to ensure that all columns are the datatype you expect.
 
 
 ```python
@@ -194,7 +194,7 @@ Much better. Now, let's do a little more investigation into our target variable 
 
 ##  EDA
 
-Let's first look at the overall distribution of the class balance of the default and not default label to determine if there is a need for each one of the different things here. Create a barplot to compare the number of defaults vs. non-defaults.
+Let's first look at the overall distribution of class balance of the default and not default label to determine if there is a need for each one of the different things here. Create a barplot to compare the number of defaults vs. non-defaults. This will require using groupBy as well as an aggregation method.
 
 
 ```python
@@ -382,7 +382,7 @@ print('best parameters : ',lr_params[index_best_model])
     best parameters :  {Param(parent='LogisticRegression_4e12b7861559618c2aa6', name='regParam', doc='regularization parameter (>= 0).'): 0.0, Param(parent='LogisticRegression_4e12b7861559618c2aa6', name='standardization', doc='whether to standardize the training features before fitting the model.'): True}
 
 
-#### Now try this again with other classifiers. Try and create a function that will allow you to easily test different models with different parameters. This function is optional, but it should allow for your code to be far more D.R.Y.
+#### Now try this again with other classifiers. Try and create a function that will allow you to easily test different models with different parameters. This function is optional, but it should allow for your code to be far more D.R.Y. The function should return the fitted cross-validated model as well as print out the performance metrics of the best performing model and the best parameters.
 
 
 ```python
