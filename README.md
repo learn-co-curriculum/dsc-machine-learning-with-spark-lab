@@ -3,7 +3,7 @@
 
 ## Introduction
 
-In the previous lecture, you were shown how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, and fitting it into the Spark Framework. Afterwords, you're going to make use of different visualizations to see if you can get any insights from the model. This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex. Let's get started!
+In the previous lecture, you were shown how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, and fitting it into the Spark Framework. Afterward, you're going to make use of different visualizations to see if you can get any insights from the model. This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex. Let's get started!
 
 ### Objectives
 
@@ -11,7 +11,7 @@ In the previous lecture, you were shown how to manipulate data with Spark DataFr
 * Evaluate a model with pyspark
 * Create and interpret visualizations with pyspark
 
-To begin with create a SparkSession and read in credit_card_default.csv 
+To begin with create a SparkSession and read in 'credit_card_default.csv' to a PySpark DataFrame. 
 
 
 ```python
@@ -25,7 +25,7 @@ from pyspark.sql import SparkSession
 spark_df = None
 ```
 
-Check the datatypes to ensure that all of them are the datatype you expect.
+Check the datatypes to ensure that all columns are the datatype you expect.
 
 
 ```python
