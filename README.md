@@ -399,6 +399,22 @@ Let's also visualize the difference in default rate between males and females in
 
 
 ```python
+# perform a groupby for default and sex
+
+```
+
+
+
+
+    [Row(default=1, SEX='Female', count=3762),
+     Row(default=0, SEX='Male', count=9015),
+     Row(default=1, SEX='Male', count=2873),
+     Row(default=0, SEX='Female', count=14349)]
+
+
+
+
+```python
 # __SOLUTION__ 
 # perform a groupby for default and sex
 results = spark_df_done.groupBy(['default','SEX']).count().collect()
@@ -417,29 +433,6 @@ results
 
 
 ```python
-# perform a groupby for default and sex
-
-```
-
-
-
-
-    [Row(default=1, SEX='Female', count=3762),
-     Row(default=0, SEX='Male', count=9015),
-     Row(default=1, SEX='Male', count=2873),
-     Row(default=0, SEX='Female', count=14349)]
-
-
-
-
-```python
-# __SOLUTION__ 
-female =  [results[0],results[-1]]
-male = [results[1],results[2]]
-```
-
-
-```python
 # make barplot for female and male default v no default rate
 ```
 
@@ -451,8 +444,15 @@ male = [results[1],results[2]]
 
 
 
-![png](index_files/index_34_1.png)
+![png](index_files/index_33_1.png)
 
+
+
+```python
+# __SOLUTION__ 
+female =  [results[0],results[-1]]
+male = [results[1],results[2]]
+```
 
 
 ```python
