@@ -11,7 +11,7 @@ In the previous lecture, you were shown how to manipulate data with Spark DataFr
 * Evaluate a model with pyspark
 * Create and interpret visualizations with pyspark
 
-To begin with, create a SparkSession and read in 'credit_card_default.csv' to a PySpark DataFrame
+To begin with create a SparkSession and read in 'credit_card_default.csv' to a PySpark DataFrame. 
 
 
 ```python
@@ -218,6 +218,8 @@ ax.set_xticklabels(['No Default (0)','Default (1)'])
 ![png](index_files/index_19_1.png)
 
 
+Let's also visualize the difference in default rate between males and females in this dataset.
+
 
 ```python
 # perform a groupby for default and sex
@@ -262,7 +264,7 @@ axes[1].set_xticklabels(['No Default (0)','Default (1)'])
 
 
 
-![png](index_files/index_22_1.png)
+![png](index_files/index_23_1.png)
 
 
 It looks like males have an ever so slightly higher default rate than females.
