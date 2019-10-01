@@ -702,6 +702,7 @@ Train a Random Forest classifier and determine the best performing model with th
 
 ```python
 # code to train Random Forest Classifier
+# ⏰ This cell may take a long time to run
 
 ```
 
@@ -730,7 +731,7 @@ Now train a Gradient Boosting Classifier. **This might take a very long time dep
 
 ```python
 # code to train Gradient Boosting Classifier
-
+# ⏰ This cell may take a long time to run
 
 ```
 
