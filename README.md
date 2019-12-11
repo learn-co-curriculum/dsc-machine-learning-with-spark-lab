@@ -3,15 +3,16 @@
 
 ## Introduction
 
-In the previous lecture, you were shown how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, and fitting it into the Spark Framework. Afterward, you're going to make use of different visualizations to see if you can get any insights from the model. This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex. Let's get started!
+In the previous lesson, you saw how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, and fitting it in the Spark framework. Afterward, you're going to make use of different visualizations to see if you can get any insights from the model. This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex. Let's get started!
 
 ### Objectives
 
-* Create machine learning pipeline with pyspark
-* Evaluate a model with pyspark
-* Create and interpret visualizations with pyspark
+In this lab you will: 
 
-To begin with create a SparkSession and read in 'credit_card_default.csv' to a PySpark DataFrame. 
+- Load and manipulate data using Spark DataFrames 
+- Create a Spark ML pipeline that transforms data and runs over a grid of hyperparameters 
+
+To begin with create a SparkSession and import the `'credit_card_default.csv'` file  into a PySpark DataFrame. 
 
 
 ```python
@@ -64,12 +65,12 @@ spark_df.dtypes
 
 
 
-Check to see how many null values are in the dataset. This will require using the `filter` , `isNull`, and `count` method.
+Check to see how many missing values are in the dataset. This will require using the `.filter()` , `.isNull()`, and `.count()` methods.
 
 
 ```python
 for col in spark_df.columns:
-    print('column',col,spark_df.filter(spark_df[col].isNull()).count())
+    print('column', col, spark_df.filter(spark_df[col].isNull()).count())
 ```
 
     column ID 0
@@ -103,7 +104,7 @@ Now, determine how many categories there are in each of the categorical columns.
 
 
 ```python
-for column , data_type in spark_df.dtypes:
+for column, data_type in spark_df.dtypes:
     if data_type == 'string':
         print('Feature ',column,' has: ', spark_df.select(column).distinct().collect())
 ```
@@ -113,7 +114,7 @@ for column , data_type in spark_df.dtypes:
     Feature  MARRIAGE  has:  [Row(MARRIAGE='0'), Row(MARRIAGE='Other'), Row(MARRIAGE='Married'), Row(MARRIAGE='Single')]
 
 
-Interesting... it looks like we have some extraneous values in each of our categories. Let's look at some visualizations of each of these to determine just how many of them there are. Create bar plots of the variables EDUCATION and MARRIAGE to see how many of the undefined values there are. After doing so, come up with a strategy for accounting for the extra value.
+Interesting... it looks like we have some extraneous values in each of our categories. Let's look at some visualizations of each of these to determine just how many of them there are. Create bar plots of the variables `'EDUCATION'` and `'MARRIAGE'` to see how many of the undefined values there are. After doing so, come up with a strategy for accounting for the extra values.
 
 
 ```python
@@ -145,22 +146,22 @@ plt.show()
 ![png](index_files/index_11_0.png)
 
 
-It looks like there are barely any of the categories of 0 and 5 categories. We can go ahead and throw them into the "Other" category since it's already operating as a catchall here. Similarly, the category "0" looks small, so let's throw it in with the "Other" values. You can do this by using a function called `when` from pyspark in conjunction with `withColumn` and `otherwise` 
+It looks like there are barely any of the 0 and 5 categories. We can go ahead and throw them into the "Other" category since it's already operating as a catchall here. Similarly, the category "0" looks small, so let's throw it in with the "Other" values. You can do this by using a method called `.when()` from PySpark in conjunction with `.withColumn()` and `.otherwise()`.  
 
 
 ```python
 from pyspark.sql.functions import when
 
 ## changing the values in the education column
-spark_df_2 = spark_df.withColumn("EDUCATION",
-                    when(spark_df.EDUCATION == '0','Other')\
-                    .when(spark_df.EDUCATION == '5','Other')\
-                    .when(spark_df.EDUCATION == '6','Other')\
+spark_df_2 = spark_df.withColumn('EDUCATION',
+                    when(spark_df.EDUCATION == '0', 'Other')\
+                    .when(spark_df.EDUCATION == '5', 'Other')\
+                    .when(spark_df.EDUCATION == '6', 'Other')\
                     .otherwise(spark_df['EDUCATION']))
 
 ## chaning the values in the marriage column
-spark_df_done = spark_df_2.withColumn("MARRIAGE",
-                                   when(spark_df.MARRIAGE == '0','Other')\
+spark_df_done = spark_df_2.withColumn('MARRIAGE',
+                                   when(spark_df.MARRIAGE == '0', 'Other')\
                                    .otherwise(spark_df['MARRIAGE']))
 ```
 
@@ -176,11 +177,11 @@ spark_df_done.head()
 
 
 
-Now let's take a look at all the values contained in the categorical columns of the DataFrame.
+Now let's take a look at all the values contained in the categorical columns of the DataFrame: 
 
 
 ```python
-for column , data_type in spark_df_done.dtypes:
+for column, data_type in spark_df_done.dtypes:
     if data_type == 'string':
         print('Feature ',column,' has: ', spark_df_done.select(column).distinct().collect())
 ```
@@ -194,7 +195,7 @@ Much better. Now, let's do a little more investigation into our target variable 
 
 ##  EDA
 
-Let's first look at the overall distribution of class balance of the default and not default label to determine if there is a need for each one of the different things here. Create a barplot to compare the number of defaults vs. non-defaults. This will require using groupBy as well as an aggregation method.
+Let's first look at the overall distribution of class balance of the default and not default labels. Create a barplot to compare the number of defaults vs. non-defaults. This will require using `.groupBy()` as well as an aggregation method.
 
 
 ```python
@@ -204,7 +205,6 @@ num_defaults = [x[1] for x in number_of_defaults]
 ax = sns.barplot(default,num_defaults)
 ax.set_ylabel('Number of Defaults')
 ax.set_xticklabels(['No Default (0)','Default (1)'])
-
 ```
 
 
@@ -271,7 +271,7 @@ It looks like males have an ever so slightly higher default rate than females.
 
 ## Onto the Machine Learning!
 
-Now, it's time to fit the data to the pyspark machine learning model pipeline.  You will need:
+Now, it's time to fit the data to the PySpark machine learning model pipeline. You will need:
 
 * 3 StringIndexers (for each categorical feature)
 * A OneHotEncoderEstimator (to encode the newly indexed strings into categorical variables)
@@ -449,11 +449,11 @@ gb_model = create_model(gb,stages, param_grid=param_gb, parallel=4)
 
 It looks like the optimal performing model is the Random Forest Classifier Model because it has the highest AUC!
 
-## Level Up
+## Level Up (Optional)
 
 * Create ROC curves for each of these models
-* Try the Multi-Layer Perceptron classifier algorithm. You will soon learn about what this means in the neural network section!
+* Try the multi-layer perceptron classifier algorithm. You will soon learn about what this means in the neural network section!
 
 ## Summary
 
-If you've made it thus far, congratulations! Spark is an in-demand skill, but it is not particularly easy to master. In this lesson, you fit multiple different machine learning pipelines for a classification problem. If you want to boost your spark skills to the next level, connect to a distributed cluster using a service like AWS or Databricks and perform these Spark operations on the cloud.
+If you've made it thus far, congratulations! Spark is an in-demand skill, but it is not particularly easy to master. In this lesson, you fit multiple different machine learning pipelines for a classification problem. If you want to take your Spark skills to the next level, connect to a distributed cluster using a service like AWS or Databricks and perform these Spark operations on the cloud.
