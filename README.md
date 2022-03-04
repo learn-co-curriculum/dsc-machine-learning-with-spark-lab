@@ -1,9 +1,8 @@
-
 ## Machine Learning with Spark - Lab
 
 ## Introduction
 
-In the previous lesson, you saw how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, and fitting it in the Spark framework. Afterward, you're going to make use of different visualizations to see if you can get any insights from the model. This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex. Let's get started!
+Previously you saw how to manipulate data with Spark DataFrames as well as create machine learning models. In this lab, you're going to practice loading data, manipulating it, preparing visualizations, and fitting it in the Spark MLlib framework. Let's get started!
 
 ### Objectives
 
@@ -12,358 +11,329 @@ In this lab you will:
 - Load and manipulate data using Spark DataFrames 
 - Create a Spark ML pipeline that transforms data and runs over a grid of hyperparameters 
 
-To begin with create a SparkSession and import the `'credit_card_default.csv'` file  into a PySpark DataFrame. 
+## The Data
+
+This dataset is from a Taiwanese financial company, and the task is to determine which individuals are going to default on their credit card based off of characteristics such as limit balance, past payment history, age, marriage status, and sex.
+
+You'll use the file `credit_card_default.csv`, which comes from the [UCI ML Repository](https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients).
+
+## Initial Data Exploration
+
+Get started by writing the relevant import statement and creating a local SparkSession called `spark`, then use that SparkSession to read `credit_card_default.csv` into a Spark SQL DataFrame.
 
 
 ```python
 # import necessary libraries
-from pyspark import SparkContext
-from pyspark.sql import SparkSession
-# initialize Spark Session
 
+# initialize Spark Session
+spark = None
 
 # read in csv to a spark dataframe
 spark_df = None
 ```
 
-Check the datatypes to ensure that all columns are the datatype you expect.
+Use `.head()` to display the first 5 records, and print out the schema.
 
 
 ```python
+# Display the first 5 records
 
 ```
 
 
-
-
-    [('ID', 'int'),
-     ('LIMIT_BAL', 'double'),
-     ('SEX', 'string'),
-     ('EDUCATION', 'string'),
-     ('MARRIAGE', 'string'),
-     ('AGE', 'int'),
-     ('PAY_0', 'int'),
-     ('PAY_2', 'int'),
-     ('PAY_3', 'int'),
-     ('PAY_4', 'int'),
-     ('PAY_5', 'int'),
-     ('PAY_6', 'int'),
-     ('BILL_AMT1', 'double'),
-     ('BILL_AMT2', 'double'),
-     ('BILL_AMT3', 'double'),
-     ('BILL_AMT4', 'double'),
-     ('BILL_AMT5', 'double'),
-     ('BILL_AMT6', 'double'),
-     ('PAY_AMT1', 'double'),
-     ('PAY_AMT2', 'double'),
-     ('PAY_AMT3', 'double'),
-     ('PAY_AMT4', 'double'),
-     ('PAY_AMT5', 'double'),
-     ('PAY_AMT6', 'double'),
-     ('default', 'int')]
-
-
-
-Check to see how many missing values are in the dataset. This will require using the `.filter()` , `.isNull()`, and `.count()` methods.
-
-
 ```python
-for col in spark_df.columns:
-    # your code here
+# Print out the schema
+
 ```
 
-    column ID 0
-    column LIMIT_BAL 0
-    column SEX 0
-    column EDUCATION 0
-    column MARRIAGE 0
-    column AGE 0
-    column PAY_0 0
-    column PAY_2 0
-    column PAY_3 0
-    column PAY_4 0
-    column PAY_5 0
-    column PAY_6 0
-    column BILL_AMT1 0
-    column BILL_AMT2 0
-    column BILL_AMT3 0
-    column BILL_AMT4 0
-    column BILL_AMT5 0
-    column BILL_AMT6 0
-    column PAY_AMT1 0
-    column PAY_AMT2 0
-    column PAY_AMT3 0
-    column PAY_AMT4 0
-    column PAY_AMT5 0
-    column PAY_AMT6 0
-    column default 0
-
-
-Now, determine how many categories there are in each of the categorical columns.
+It looks like we have three non-numeric features. For each non-numeric (`string`) feature, select and show all distinct categories.
 
 
 ```python
-for column, data_type in spark_df.dtypes:
-   # your code here
+# Select and show all distinct categories
+
 ```
 
-    Feature  SEX  has:  [Row(SEX='Female'), Row(SEX='Male')]
-    Feature  EDUCATION  has:  [Row(EDUCATION='High School'), Row(EDUCATION='0'), Row(EDUCATION='5'), Row(EDUCATION='6'), Row(EDUCATION='Other'), Row(EDUCATION='Graduate'), Row(EDUCATION='College')]
-    Feature  MARRIAGE  has:  [Row(MARRIAGE='0'), Row(MARRIAGE='Other'), Row(MARRIAGE='Married'), Row(MARRIAGE='Single')]
+Interesting...it looks like we have some extraneous values in our categories. For example both `EDUCATION` and `MARRIAGE` have a category `0`.
 
+Let's create some visualizations of each of these to determine just how many of them there are.
 
-Interesting... it looks like we have some extraneous values in each of our categories. Let's look at some visualizations of each of these to determine just how many of them there are. Create bar plots of the variables `'EDUCATION'` and `'MARRIAGE'` to see how many of the undefined values there are. After doing so, come up with a strategy for accounting for the extra values.
+Create bar plots of the variables `EDUCATION` and `MARRIAGE` to see how the records are distributed between the categories.
+
+<details>
+    <summary><u>Click to reveal hint</u></summary>
+    
+To create a bar plot, you need to group by the category (`.groupBy()`) and then aggregate by the count in that category (`.count()`). That will result in a small DataFrame containing `EDUCATION` and `count` columns.
+    
+Then the easiest way to create a bar plot is to call `.toPandas()` to make that small Spark SQL DataFrame into a pandas DataFrame, and call `.plot()` on the pandas DataFrame.
+
+</details>
 
 
 ```python
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-
-
-## plotting the categories for education
+# Create bar plot of EDUCATION
 
 ```
 
 
-    <Figure size 640x480 with 1 Axes>
+```python
+# Create bar plot of MARRIAGE
 
+```
+
+## Binning
+
+It looks like there are barely any records in the `0`, `5`, and `6` categories. Let's go ahead and bin (combine) those with the current `Other` records into a single catch-all `Other` category for both `EDUCATION` and `MARRIAGE`.
+
+The approach we'll use is similar to the `CASE WHEN` technique in SQL. If this were a SQL query, it would look something like this:
+
+```sql
+SELECT CASE
+       WHEN EDUCATION = '0' THEN 'Other'
+       WHEN EDUCATION = '5' THEN 'Other'
+       WHEN EDUCATION = '6' THEN 'Other'
+       ELSE EDUCATION
+       END AS EDUCATION
+  FROM credit_card_default;
+```
+
+With Spark SQL DataFrames, this is achieved using `.withColumn()` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html)) in conjunction with `.when()` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.when.html)) and `.otherwise()` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.otherwise.html)).
 
 
 ```python
-## plotting the categories for marriage
+# Bin EDUCATION categories
+
+# Bin MARRIAGE categories
+
+# Select and show all distinct categories for EDUCATION and MARRIGE again
+
+```
+
+Let's also re-create the plots from earlier, now that the data has been binned:
+
+
+```python
+# Plot EDUCATION
 
 ```
 
 
-![png](index_files/index_11_0.png)
-
-
-It looks like there are barely any of the 0 and 5 categories. We can go ahead and throw them into the "Other" category since it's already operating as a catchall here. Similarly, the category "0" looks small, so let's throw it in with the "Other" values. You can do this by using a method called `.when()` from PySpark in conjunction with `.withColumn()` and `.otherwise()`.  
-
-
 ```python
-from pyspark.sql.functions import when
+# Plot MARRIAGE
 
-## changing the values in the education column
-
-## changing the values in the marriage column
-
-spark_df_done = None
 ```
-
-
-```python
-spark_df_done.head()
-```
-
-
-
-
-    Row(ID=2, LIMIT_BAL=120000.0, SEX='Female', EDUCATION='College', MARRIAGE='Single', AGE=26, PAY_0=-1, PAY_2=2, PAY_3=0, PAY_4=0, PAY_5=0, PAY_6=2, BILL_AMT1=2682.0, BILL_AMT2=1725.0, BILL_AMT3=2682.0, BILL_AMT4=3272.0, BILL_AMT5=3455.0, BILL_AMT6=3261.0, PAY_AMT1=0.0, PAY_AMT2=1000.0, PAY_AMT3=1000.0, PAY_AMT4=1000.0, PAY_AMT5=0.0, PAY_AMT6=2000.0, default=1)
-
-
-
-Now let's take a look at all the values contained in the categorical columns of the DataFrame: 
-
-
-```python
-for column, data_type in spark_df_done.dtypes:
-    # your code here
-```
-
-    Feature  SEX  has:  [Row(SEX='Female'), Row(SEX='Male')]
-    Feature  EDUCATION  has:  [Row(EDUCATION='High School'), Row(EDUCATION='Other'), Row(EDUCATION='Graduate'), Row(EDUCATION='College')]
-    Feature  MARRIAGE  has:  [Row(MARRIAGE='Other'), Row(MARRIAGE='Married'), Row(MARRIAGE='Single')]
-
 
 Much better. Now, let's do a little more investigation into our target variable before diving into the machine learning aspect of this project.
 
-##  EDA
+##  Class Balance Exploration
 
-Let's first look at the overall distribution of class balance of the default and not default labels. Create a barplot to compare the number of defaults vs. non-defaults. This will require using `.groupBy()` as well as an aggregation method.
+Let's first look at the overall distribution of class balance of the `default` column (the target for our upcoming machine learning process). 
 
-
-```python
-
-```
-
-
-
-
-    [Text(0,0,'No Default (0)'), Text(0,0,'Default (1)')]
-
-
-
-
-![png](index_files/index_19_1.png)
-
-
-Let's also visualize the difference in default rate between males and females in this dataset.
+Create a bar plot to compare the number of defaults (`0`) vs. non-defaults (`1`). Consider customizing your plot labels as well, since `0` and `1` are not particularly understandable values.
 
 
 ```python
-# perform a groupby for default and sex
+# Group and aggregate target data
+
+# Plot target data
 
 ```
 
+Looks like we have a fairly imbalanced dataset.
 
-
-
-    [Row(default=1, SEX='Female', count=3762),
-     Row(default=0, SEX='Male', count=9015),
-     Row(default=1, SEX='Male', count=2873),
-     Row(default=0, SEX='Female', count=14349)]
-
-
+Let's also visualize the difference in default rate between males and females in this dataset. Group by both `default` and `SEX` and visualize the comparison.
 
 
 ```python
-# make barplot for female and male default v no default rate
+# Group and aggregate target and sex data
+
+# Plot target and sex data
+
 ```
 
+It looks like males have an ever so slightly higher default rate than females, and also represent a smaller proportion of the dataset.
 
-
-
-    [Text(0,0,'No Default (0)'), Text(0,0,'Default (1)')]
-
-
-
-
-![png](index_files/index_22_1.png)
-
-
-It looks like males have an ever so slightly higher default rate than females.
-
-## Onto the Machine Learning!
+## On to the Machine Learning!
 
 Now, it's time to fit the data to the PySpark machine learning model pipeline. You will need:
 
-* 3 StringIndexers (for each categorical feature)
-* A OneHotEncoderEstimator (to encode the newly indexed strings into categorical variables)
-* A VectorAssembler (to combine all features into one SparseVector)
+* 3 `StringIndexer`s
+  * One for each categorical feature
+  * [Documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.StringIndexer.html)
+* A `OneHotEncoder`
+  * To encode the newly indexed strings into categorical variables
+  * [Documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.OneHotEncoder.html)
+* A `VectorAssembler`
+  * To combine all features into one `SparseVector`
+  * [Documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.feature.VectorAssembler.html)
 
-All of these initialized estimators should be stored in a list.
-
-
-```python
-# importing the necessary modules
-
-
-# creating the string indexers
-
-
-# features to be included in the model 
-
-# adding the categorical features
-
-# putting all of the features into a single vector
-
-
-```
-
-    [StringIndexer_47acb457ea747325b362, StringIndexer_476d9333661023960df9, StringIndexer_4477bba86fbbf3c44e9b, OneHotEncoderEstimator_41e99280e73030b62fe5, VectorAssembler_45a59eab105a2278079b]
-
-
-Alright! Now let's see if that worked. Let's investigate how it transforms your dataset. Put all of the stages in a Pipeline and fit it to your data. Look at the features column. Did you obtain the number of features you expected?
+All of these initialized estimators should be stored in a list called `stages`.
 
 
 ```python
-from pyspark.ml.pipeline import Pipeline
+# Import the necessary classes
 
 
-# 17 numerical features and 6 categorical ones (the argument dropLast = True makes us have Sex, 3 Edu variables and 2 marriage)
+# Create the string indexers and determine the names of the numeric
+# and indexed columns. Note that ID is an identifier and should NOT
+# be included in the numeric columns
+
+
+# Create a OneHotEncoder to encode the indexed string features
+
+
+# Determine the names of the final list of features going into the model
+
+
+# Create a VectorAssembler to combine all features
+
+
+# Assemble a list of stages that includes all indexers, the one-hot
+# encoder, and the vector assembler
+
 ```
 
+Great! Now let's see if that worked. Let's investigate how it transforms your dataset. Put all of the stages in a Pipeline and fit it to your data. Look at the features column. Did you obtain the number of features you expected?
 
 
+```python
+# Import relevant class
 
-    Row(features=SparseVector(23, {0: 120000.0, 1: 26.0, 2: -1.0, 3: 2.0, 7: 2.0, 8: 2682.0, 9: 1725.0, 10: 2682.0, 11: 3272.0, 12: 3455.0, 13: 3261.0, 14: 1.0, 18: 1.0, 20: 1.0}))
+
+# Instantiate a pipeline using stages list
 
 
+# Fit and transform the data using the pipeline, then look at
+# the size of the array in the 'features' column
+
+```
+
+<details>
+    <summary><u>Click to reveal answer</u></summary>
+    
+The pipeline should have produced a sparse vector with 29 features.
+
+This comes from:
+    
+* 20 numeric features
+* 3 one-hot encoded features with `dropLast=True`, containing
+  * 1 SEX feature
+  * 3 EDUCATION features
+  * 2 MARRIAGE features
+
+</details>
 
 ## Fitting Machine Learning Models
-That looks good! Now let's go ahead and fit data to different machine learning models. To evaluate these models, you should use the `BinaryClassificationEvaluator`. Below is an import of all the classes and libraries you'll need in the remainder of this lab.
+That looks good! Now let's go ahead and fit data to different machine learning models. To evaluate these models, you should use the `BinaryClassificationEvaluator`.
 
 
 ```python
-from pyspark.ml.classification import GBTClassifier, DecisionTreeClassifier, LogisticRegression, RandomForestClassifier
-from pyspark.ml.tuning import ParamGridBuilder, CrossValidator, TrainValidationSplit
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
-import numpy as np
+evaluator = BinaryClassificationEvaluator(
+    rawPredictionCol='prediction',
+    labelCol='default',
+    metricName='areaUnderROC'
+)
 ```
 
 ### Logistic Regression
 
-First, we'll try with a simple Logistic Regression Model:
+First, we'll try a `LogisticRegression` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.classification.LogisticRegression.html)):
 
-* instantiate a logistic regression model
-* add it to the stages list
-* instantiate a new Pipeline estimator (not fit) with all of the stages
-* instantiate an `BinaryClassificationEvaluator`
-* create parameters to gridsearch through using `ParamGridBuilder`
-* Instantiate and fit a `CrossValidator` 
+* split the data into a train and test set. The basic structure of this is:
+```
+train, test = df.randomSplit(weights=[0.8, 0.2], seed=1)
+```
+  * make sure you replace `df` with the actual name of your prepared dataframe
+* instantiate a logistic regression with `standardization=True` and add it to the stages list
+* instantiate a new Pipeline estimator with all of the stages
+* fit the pipeline on the training data
+* transform both train and test data using the pipeline
+* use `evaluator` to evaluate performance on train vs. test
 
 
 ```python
-# your code here
+from pyspark.ml.classification import LogisticRegression
+
+# Your code here
 
 ```
 
-Determine how well your model performed by looking at the evaluator metrics. If you tried multiple parameters, which performed best?
+Looks like the defaults for `LogisticRegression` are working pretty well, since the train and test metrics are pretty similar.
+
+Still, let's try a `CrossValidator` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.tuning.CrossValidator.html)) + `ParamGridBuilder` ([documentation here](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.tuning.ParamGridBuilder.html)) approach with a few different regularization parameters.
+
+We'll use these regularization parameters:
+
+```python
+[0.0, 0.01, 0.1, 1.0]
+```
+
+In the cell below:
+
+* instantiate a `ParamGridBuilder` that tests out the `regParam` values listed above
+* instantiate a `CrossValidator` that uses the param grid you just created as well as `evaluator` and the pipeline you created earlier
+* fit the `CrossValidator` on the full DataFrame
+* display the metrics for all models, and identify the best model parameters
 
 
 ```python
-# print out the AUC of your best model as well as the parameters of your best model
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
+# Your code here
 
 ```
 
-    0.7183252301096683 AUC
-    best parameters :  {Param(parent='LogisticRegression_4e12b7861559618c2aa6', name='regParam', doc='regularization parameter (>= 0).'): 0.0, Param(parent='LogisticRegression_4e12b7861559618c2aa6', name='standardization', doc='whether to standardize the training features before fitting the model.'): True}
+Now try this again with other classifiers. Try and create a function that will allow you to easily test different models with different parameters. You can find all of the available classification model options [here](https://spark.apache.org/docs/latest/api/python/reference/pyspark.ml.html#classification).
 
-
-#### Now try this again with other classifiers. Try and create a function that will allow you to easily test different models with different parameters. This function is optional, but it should allow for your code to be far more D.R.Y. The function should return the fitted cross-validated model as well as print out the performance metrics of the best performing model and the best parameters.
+This function is optional, but it should allow for your code to be far more D.R.Y. The function should return the fitted cross-validated classifier as well as print out the AUC of the best-performing model and the best parameters.
 
 
 ```python
-# create function to cross validate models with different parameters
+# Create a function to cross validate different classifiers with different parameters
 
 
 ```
 
-Train a Random Forest classifier and determine the best performing model with the best parameters. This might take a while! Be smart about how you use parallelization here.
+Now train one other classifier that is not a `LogisticRegression`. Use a `ParamGridBuilder` to try out some relevant parameters.
 
 
 ```python
-# code to train Random Forest Classifier
+# Your code here
 # ⏰ This cell may take a long time to run
 
 ```
 
-    best performing model:  0.7826543113276045 AUC
-    best parameters:  {Param(parent='RandomForestClassifier_4ddb8a67eee4da94132a', name='maxDepth', doc='Maximum depth of the tree. (>= 0) E.g., depth 0 means 1 leaf node; depth 1 means 1 internal node + 2 leaf nodes.'): 10, Param(parent='RandomForestClassifier_4ddb8a67eee4da94132a', name='numTrees', doc='Number of trees to train (>= 1).'): 200}
-
-
-Now train a Gradient Boosting Classifier. **This might take a very long time depending on the number of parameters you are training**
+And one more:
 
 
 ```python
-# code to train Gradient Boosting Classifier
+# Your code here
 # ⏰ This cell may take a long time to run
 
 ```
 
-    best performing model:  0.7798494380533647 AUC
-    best parameters:  {Param(parent='GBTClassifier_42569733d04d7a375612', name='maxDepth', doc='Maximum depth of the tree. (>= 0) E.g., depth 0 means 1 leaf node; depth 1 means 1 internal node + 2 leaf nodes.'): 5, Param(parent='GBTClassifier_42569733d04d7a375612', name='maxIter', doc='max number of iterations (>= 0).'): 50}
+Which classifier turned out to be the best overall?
 
 
-It looks like the optimal performing model is the Random Forest Classifier Model because it has the highest AUC!
+```python
+# Your answer here
+"""
+
+""";
+```
 
 ## Level Up (Optional)
 
 * Create ROC curves for each of these models
 * Try the multi-layer perceptron classifier algorithm. You will soon learn about what this means in the neural network section!
 
+## Stop the Spark Session
+
+
+```python
+spark.stop()
+```
+
 ## Summary
 
-If you've made it thus far, congratulations! Spark is an in-demand skill, but it is not particularly easy to master. In this lesson, you fit multiple different machine learning pipelines for a classification problem. If you want to take your Spark skills to the next level, connect to a distributed cluster using a service like AWS or Databricks and perform these Spark operations on the cloud.
+If you've made it this far, congratulations! Spark is an in-demand skill, but it is not particularly easy to master. In this lesson, you fit multiple different machine learning pipelines for a classification problem. If you want to take your Spark skills to the next level, connect to a distributed cluster using a service like AWS or Databricks and perform these Spark operations on the cloud.
