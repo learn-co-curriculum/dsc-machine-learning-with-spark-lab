@@ -1,4 +1,4 @@
-## Machine Learning with Spark - Lab
+# Machine Learning with Spark - Lab
 
 ## Introduction
 
