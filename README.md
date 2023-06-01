@@ -344,7 +344,7 @@ target_by_sex.show()
 # Plot target and sex data
 fig, ax = plt.subplots()
 
-target_by_sex.toPandas().pivot('SEX', 'default')\
+target_by_sex.toPandas().pivot(index='SEX', columns='default')\
                .plot(kind='bar', ax=ax, rot=0)
 
 ax.legend(title="Count", labels=['Does Not Default (0)','Defaults (1)']);
